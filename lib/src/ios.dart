@@ -44,12 +44,13 @@ void createIcons(Map<String, dynamic> config, String? flavor) {
   final String filePath = config['image_path_ios'] ?? config['image_path'];
   // decodeImageFile shows error message if null
   // so can return here if image is null
-  final image = Icon.loadFile(filePath);
+  var image = Icon.loadFile(filePath);
   if (image == null) {
     return;
   }
   if (config['remove_alpha_ios'] is bool && config['remove_alpha_ios']) {
-    image.removeAlpha();
+    final color = config['background_color_ios']?.toString() ?? '#ffffff';
+    image = image.removeAlpha(colorFromHex(color));
   }
   if (image.hasAlpha) {
     print(

@@ -1,71 +1,47 @@
-import 'dart:typed_data';
-
+import 'package:icons_launcher/icon_image.dart';
 import 'package:image/image.dart';
 import 'package:universal_io/io.dart';
 
-/// Icon template
-class IconTemplate {
-  const IconTemplate({required this.size});
+import 'icon_svg.dart';
 
-  final int size;
-}
-
-class Icon {
-  const Icon._(this.image);
-
-  static Icon? _loadBytes(Uint8List bytes) {
-    final image = decodeImage(bytes);
-    if (image == null) {
-      return null;
-    }
-
-    return Icon._(image);
-  }
+abstract class Icon {
+  const Icon();
 
   static Icon? loadFile(String filePath) {
-    return Icon._loadBytes(File(filePath).readAsBytesSync());
-  }
-
-  final Image image;
-
-  bool get hasAlpha => image.channels == Channels.rgba;
-
-  void removeAlpha() {
-    image.channels = Channels.rgb;
-  }
-
-  /// Create a resized copy of this Icon
-  Icon copyResized(int iconSize) {
-    // Note: Do not change interpolation unless you end up with better results
-    // (see issue for result when using cubic interpolation)
-    if (image.width >= iconSize) {
-      return Icon._(copyResize(
-        image,
-        width: iconSize,
-        height: iconSize,
-        interpolation: Interpolation.average,
-      ));
-    } else {
-      return Icon._(copyResize(
-        image,
-        width: iconSize,
-        height: iconSize,
-        interpolation: Interpolation.linear,
-      ));
+    if (filePath.toLowerCase().endsWith('.svg') ||
+        filePath.toLowerCase().endsWith('.svgz')) {
+      try {
+        return IconSvg(filePath);
+      } catch (e) {
+        return null;
+      }
+    }
+    try {
+      return IconImage.loadBytes(File(filePath).readAsBytesSync());
+    } catch (e) {
+      return null;
     }
   }
 
-  /// Save the resized image to a file
-  Future<void> saveResizedPng(int iconSize, String filePath) async {
-    final data = encodePng(copyResized(iconSize).image);
-    final file = File(filePath);
-    await file.create(recursive: true);
-    await file.writeAsBytes(data);
-  }
+  bool get hasAlpha;
 
-  /// Save the resized image to a Windows ico file
+  Future<Image> getImage();
+
+  Icon removeAlpha([int backgroundColor = 0xffffff]);
+
+  /// Create a resized copy of this Icon
+  Icon copyResized(int iconSize);
+
+  /// Save the resized image to a file
+  Future<void> saveResizedPng(int iconSize, String filePath);
+
+  /// Save a list of images to a Windows ico file
   static Future<void> saveIco(List<Icon> icons, String filePath) async {
-    final data = encodeIcoImages(icons.map((e) => e.image).toList());
+    final images = <Image>[];
+    for (final icon in icons) {
+      images.add(await icon.getImage());
+    }
+    final data = encodeIcoImages(images);
     final file = File(filePath);
     await file.create(recursive: true);
     await file.writeAsBytes(data);
